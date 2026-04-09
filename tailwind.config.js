@@ -2,6 +2,8 @@
 export default {
   content: [
     "./index.html",
+    "./stock-control-complete/index.html",
+    "./stock-control-complete/src/**/*.{js,ts,jsx,tsx}",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
