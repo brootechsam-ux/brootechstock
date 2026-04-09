@@ -1,5 +1,6 @@
 [build]
-  command = "npm run build"
+  base = "stock-control-complete"
+  command = "npm install && npm run build"  # ← Adicionado npm install
   publish = "dist"
 
 [[redirects]]

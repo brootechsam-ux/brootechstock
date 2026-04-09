@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'wouter'
+import { useLocation } from 'wouter'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -12,7 +12,7 @@ export default function Login() {
   const [mode, setMode] = useState<AuthMode>('login')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [, navigate] = useNavigate()
+  const [, setLocation] = useLocation()
 
   const [formData, setFormData] = useState({
     email: '',
@@ -46,7 +46,7 @@ export default function Login() {
         if (error) throw error
       }
 
-      navigate('/')
+      setLocation('/')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro na autenticação')
     } finally {
