@@ -69,6 +69,29 @@ export function useInventory() {
     return data
   }
 
+  const updateProduct = async (id: string, updates: Partial<Product>) => {
+    const { data, error } = await supabase
+      .from('products')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+    await fetchProducts()
+    return data
+  }
+
+  const deleteProduct = async (id: string) => {
+    const { error } = await supabase
+      .from('products')
+      .delete()
+      .eq('id', id)
+
+    if (error) throw error
+    await fetchProducts()
+  }
+
   const addMovement = async (movement: Omit<Movement, 'id' | 'user_id' | 'created_at'>) => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('Usuário não autenticado')
@@ -107,17 +130,20 @@ export function useInventory() {
     const totalQuantity = products.reduce((sum, p) => sum + p.quantity, 0)
     const lowStock = products.filter(p => p.quantity <= p.min_quantity).length
     
-    // Valor do Inventário (Custo)
+    // Valor do Inventário (Custo Total)
+    // Multiplica a quantidade de cada produto pelo seu preço de custo
     const inventoryValue = products.reduce((sum, p) => sum + (p.quantity * (p.cost_price || 0)), 0)
     
     // Faturamento Total (Vendas)
+    // Soma todas as movimentações de saída (vendas) multiplicando quantidade pelo preço de venda registrado
     const totalRevenue = movements
-      .filter(m => m.type === 'saida')
+      .filter(m => m.type === 'saida' && m.movement_reason === 'venda')
       .reduce((sum, m) => sum + (m.quantity * (m.sale_price || 0)), 0)
 
     // Lucro Bruto Estimado
+    // Para cada venda, calcula: (quantidade * preço_venda) - (quantidade * preço_custo)
     const totalProfit = movements
-      .filter(m => m.type === 'saida')
+      .filter(m => m.type === 'saida' && m.movement_reason === 'venda')
       .reduce((sum, m) => {
         const product = products.find(p => p.id === m.product_id)
         const cost = product ? product.cost_price || 0 : 0
@@ -142,6 +168,8 @@ export function useInventory() {
     isLoaded,
     error,
     addProduct,
+    updateProduct,
+    deleteProduct,
     addMovement,
     getStats,
     fetchProducts,
