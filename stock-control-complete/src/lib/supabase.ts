@@ -19,6 +19,7 @@ export type Product = {
   min_quantity: number
   max_quantity: number
   unit_price: number
+  cost_price: number
   created_at: string
   updated_at: string
 }
@@ -30,6 +31,8 @@ export type Movement = {
   type: 'entrada' | 'saida'
   quantity: number
   reason: string
+  movement_reason?: string
+  sale_price?: number
   notes?: string
   date: string
   created_at: string
