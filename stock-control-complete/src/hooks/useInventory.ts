@@ -1,177 +1,150 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase, Product, Movement } from '@/lib/supabase'
-
-interface InventoryStats {
-  totalProducts: number
-  totalValue: number
-  lowStockProducts: number
-  totalQuantity: number
-}
 
 export function useInventory() {
   const [products, setProducts] = useState<Product[]>([])
   const [movements, setMovements] = useState<Movement[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [isLoaded, setIsLoaded] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [userId, setUserId] = useState<string | null>(null)
 
-  // Get current user
-  useEffect(() => {
-    const getUser = async () => {
+  const fetchProducts = useCallback(async () => {
+    try {
       const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        setUserId(user.id)
-      }
-    }
-    
-    getUser()
+      if (!user) return
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        setUserId(session.user.id)
-      } else {
-        setUserId(null)
-        setProducts([])
-        setMovements([])
-      }
-    })
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('name')
 
-    return () => {
-      subscription?.unsubscribe()
+      if (error) throw error
+      setProducts(data || [])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao buscar produtos')
     }
   }, [])
 
-  // Load data
-  useEffect(() => {
-    if (!userId) return
+  const fetchMovements = useCallback(async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
 
-    const loadData = async () => {
-      try {
-        setIsLoading(true)
-        setError(null)
-        
-        const [{ data: productsData }, { data: movementsData }] = await Promise.all([
-          supabase.from('products').select('*').eq('user_id', userId),
-          supabase.from('movements').select('*').eq('user_id', userId).order('date', { ascending: false }),
-        ])
-        
-        setProducts(productsData || [])
-        setMovements(movementsData || [])
-        setIsLoaded(true)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Erro ao carregar dados')
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    loadData()
-
-    // Subscribe to changes
-    const productsSubscription = supabase
-      .channel('products-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'products', filter: `user_id=eq.${userId}` }, () => {
-        loadData()
-      })
-      .subscribe()
-
-    const movementsSubscription = supabase
-      .channel('movements-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'movements', filter: `user_id=eq.${userId}` }, () => {
-        loadData()
-      })
-      .subscribe()
-
-    return () => {
-      productsSubscription.unsubscribe()
-      movementsSubscription.unsubscribe()
-    }
-  }, [userId])
-
-  const addProduct = useCallback(
-    async (product: Omit<Product, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
-      if (!userId) throw new Error('Usuário não autenticado')
-      
-      const { data, error } = await supabase
-        .from('products')
-        .insert([{ ...product, user_id: userId }])
-        .select()
-        .single()
-      
-      if (error) throw error
-      return data
-    },
-    [userId]
-  )
-
-  const updateProduct = useCallback(
-    async (id: string, updates: Partial<Omit<Product, 'id' | 'user_id' | 'created_at' | 'updated_at'>>) => {
-      const { data, error } = await supabase
-        .from('products')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single()
-      
-      if (error) throw error
-      return data
-    },
-    []
-  )
-
-  const deleteProduct = useCallback(
-    async (id: string) => {
-      const { error } = await supabase.from('products').delete().eq('id', id)
-      if (error) throw error
-    },
-    []
-  )
-
-  const addMovement = useCallback(
-    async (movement: Omit<Movement, 'id' | 'user_id' | 'created_at'>) => {
-      if (!userId) throw new Error('Usuário não autenticado')
-      
       const { data, error } = await supabase
         .from('movements')
-        .insert([{ ...movement, user_id: userId }])
-        .select()
-        .single()
-      
+        .select('*')
+        .eq('user_id', user.id)
+        .order('date', { ascending: false })
+
       if (error) throw error
-      return data
-    },
-    [userId]
-  )
+      setMovements(data || [])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao buscar movimentações')
+    }
+  }, [])
 
-  const getStats = useCallback(
-    async (): Promise<InventoryStats> => {
-      if (!userId) return { totalProducts: 0, totalValue: 0, lowStockProducts: 0, totalQuantity: 0 }
-      
-      const lowStockCount = products.filter(p => p.quantity <= p.min_quantity).length
-      const totalValue = products.reduce((sum, p) => sum + (p.quantity * p.unit_price), 0)
-      const totalQuantity = products.reduce((sum, p) => sum + p.quantity, 0)
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true)
+      await Promise.all([fetchProducts(), fetchMovements()])
+      setIsLoaded(true)
+      setIsLoading(false)
+    }
+    loadData()
+  }, [fetchProducts, fetchMovements])
 
-      return {
-        totalProducts: products.length,
-        totalValue,
-        lowStockProducts: lowStockCount,
-        totalQuantity,
-      }
-    },
-    [userId, products]
-  )
+  const addProduct = async (product: Omit<Product, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Usuário não autenticado')
+
+    const { data, error } = await supabase
+      .from('products')
+      .insert([{ ...product, user_id: user.id }])
+      .select()
+      .single()
+
+    if (error) throw error
+    await fetchProducts()
+    return data
+  }
+
+  const addMovement = async (movement: Omit<Movement, 'id' | 'user_id' | 'created_at'>) => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Usuário não autenticado')
+
+    // 1. Registrar a movimentação (incluindo sale_price se for venda)
+    const { data, error: moveError } = await supabase
+      .from('movements')
+      .insert([{ ...movement, user_id: user.id }])
+      .select()
+      .single()
+
+    if (moveError) throw moveError
+
+    // 2. Atualizar a quantidade no produto
+    const product = products.find(p => p.id === movement.product_id)
+    if (product) {
+      const newQuantity = movement.type === 'entrada' 
+        ? product.quantity + movement.quantity 
+        : product.quantity - movement.quantity
+
+      const { error: updateError } = await supabase
+        .from('products')
+        .update({ quantity: newQuantity })
+        .eq('id', product.id)
+
+      if (updateError) console.error('Erro ao atualizar estoque:', updateError)
+    }
+
+    await Promise.all([fetchProducts(), fetchMovements()])
+    return data
+  }
+
+  const getStats = useCallback(async () => {
+    // Cálculo de estatísticas avançadas
+    const totalProducts = products.length
+    const totalQuantity = products.reduce((sum, p) => sum + p.quantity, 0)
+    const lowStock = products.filter(p => p.quantity <= p.min_quantity).length
+    
+    // Valor do Inventário (Custo)
+    const inventoryValue = products.reduce((sum, p) => sum + (p.quantity * (p.cost_price || 0)), 0)
+    
+    // Faturamento Total (Vendas)
+    const totalRevenue = movements
+      .filter(m => m.type === 'saida')
+      .reduce((sum, m) => sum + (m.quantity * (m.sale_price || 0)), 0)
+
+    // Lucro Bruto Estimado
+    const totalProfit = movements
+      .filter(m => m.type === 'saida')
+      .reduce((sum, m) => {
+        const product = products.find(p => p.id === m.product_id)
+        const cost = product ? product.cost_price || 0 : 0
+        const sale = m.sale_price || 0
+        return sum + (m.quantity * (sale - cost))
+      }, 0)
+
+    return {
+      totalProducts,
+      totalQuantity,
+      lowStock,
+      inventoryValue,
+      totalRevenue,
+      totalProfit
+    }
+  }, [products, movements])
 
   return {
     products,
     movements,
-    isLoaded,
     isLoading,
+    isLoaded,
     error,
     addProduct,
-    updateProduct,
-    deleteProduct,
     addMovement,
     getStats,
+    fetchProducts,
+    fetchMovements
   }
 }
