@@ -96,7 +96,7 @@ export function useInventory() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('Usuário não autenticado')
 
-    // 1. Registrar a movimentação (incluindo sale_price se for venda)
+    // Agora o banco de dados (Trigger) cuida da atualização do estoque automaticamente
     const { data, error: moveError } = await supabase
       .from('movements')
       .insert([{ ...movement, user_id: user.id }])
@@ -105,43 +105,22 @@ export function useInventory() {
 
     if (moveError) throw moveError
 
-    // 2. Atualizar a quantidade no produto
-    const product = products.find(p => p.id === movement.product_id)
-    if (product) {
-      const newQuantity = movement.type === 'entrada' 
-        ? product.quantity + movement.quantity 
-        : product.quantity - movement.quantity
-
-      const { error: updateError } = await supabase
-        .from('products')
-        .update({ quantity: newQuantity })
-        .eq('id', product.id)
-
-      if (updateError) console.error('Erro ao atualizar estoque:', updateError)
-    }
-
+    // Recarregamos os dados para refletir as mudanças feitas pelo banco
     await Promise.all([fetchProducts(), fetchMovements()])
     return data
   }
 
   const getStats = useCallback(async () => {
-    // Cálculo de estatísticas avançadas
     const totalProducts = products.length
     const totalQuantity = products.reduce((sum, p) => sum + p.quantity, 0)
     const lowStock = products.filter(p => p.quantity <= p.min_quantity).length
     
-    // Valor do Inventário (Custo Total)
-    // Multiplica a quantidade de cada produto pelo seu preço de custo
     const inventoryValue = products.reduce((sum, p) => sum + (p.quantity * (p.cost_price || 0)), 0)
     
-    // Faturamento Total (Vendas)
-    // Soma todas as movimentações de saída (vendas) multiplicando quantidade pelo preço de venda registrado
     const totalRevenue = movements
       .filter(m => m.type === 'saida' && m.movement_reason === 'venda')
       .reduce((sum, m) => sum + (m.quantity * (m.sale_price || 0)), 0)
 
-    // Lucro Bruto Estimado
-    // Para cada venda, calcula: (quantidade * preço_venda) - (quantidade * preço_custo)
     const totalProfit = movements
       .filter(m => m.type === 'saida' && m.movement_reason === 'venda')
       .reduce((sum, m) => {
