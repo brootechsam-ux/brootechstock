@@ -18,6 +18,7 @@ export default function Products() {
     min_quantity: 0,
     max_quantity: 100,
     unit_price: 0,
+    cost_price: 0,
     category: '',
   })
 
@@ -31,6 +32,7 @@ export default function Products() {
         min_quantity: product.min_quantity,
         max_quantity: product.max_quantity,
         unit_price: product.unit_price,
+        cost_price: product.cost_price || 0,
         category: product.category || '',
       })
     } else {
@@ -42,6 +44,7 @@ export default function Products() {
         min_quantity: 0,
         max_quantity: 100,
         unit_price: 0,
+        cost_price: 0,
         category: '',
       })
     }
@@ -112,8 +115,8 @@ export default function Products() {
                   <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">SKU</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">Categoria</th>
                   <th className="px-6 py-4 text-right text-sm font-semibold text-foreground">Quantidade</th>
-                  <th className="px-6 py-4 text-right text-sm font-semibold text-foreground">Preço Unit.</th>
-                  <th className="px-6 py-4 text-right text-sm font-semibold text-foreground">Valor Total</th>
+                  <th className="px-6 py-4 text-right text-sm font-semibold text-foreground">Preço Venda</th>
+                  <th className="px-6 py-4 text-right text-sm font-semibold text-foreground">Preço Custo</th>
                   <th className="px-6 py-4 text-center text-sm font-semibold text-foreground">Ações</th>
                 </tr>
               </thead>
@@ -149,8 +152,8 @@ export default function Products() {
                       <td className="px-6 py-4 text-sm text-right text-foreground">
                         R$ {product.unit_price.toFixed(2)}
                       </td>
-                      <td className="px-6 py-4 text-sm text-right font-medium text-foreground">
-                        R$ {(product.quantity * product.unit_price).toFixed(2)}
+                      <td className="px-6 py-4 text-sm text-right text-foreground">
+                        R$ {(product.cost_price || 0).toFixed(2)}
                       </td>
                       <td className="px-6 py-4 text-center">
                         <div className="flex gap-2 justify-center">
@@ -205,30 +208,56 @@ export default function Products() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">SKU</label>
-                <Input
-                  type="text"
-                  value={formData.sku}
-                  onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                  required
-                  placeholder="SKU"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Categoria</label>
-                <Input
-                  type="text"
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  placeholder="Categoria"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">SKU</label>
+                  <Input
+                    type="text"
+                    value={formData.sku}
+                    onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                    required
+                    placeholder="SKU"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">Categoria</label>
+                  <Input
+                    type="text"
+                    value={formData.category}
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                    placeholder="Categoria"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Quantidade</label>
+                  <label className="block text-sm font-medium text-foreground mb-2">Preço de Custo</label>
+                  <Input
+                    type="number"
+                    value={formData.cost_price}
+                    onChange={(e) => setFormData({ ...formData, cost_price: parseFloat(e.target.value) || 0 })}
+                    min="0"
+                    step="0.01"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">Preço de Venda</label>
+                  <Input
+                    type="number"
+                    value={formData.unit_price}
+                    onChange={(e) => setFormData({ ...formData, unit_price: parseFloat(e.target.value) || 0 })}
+                    min="0"
+                    step="0.01"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">Qtd Inicial</label>
                   <Input
                     type="number"
                     value={formData.quantity}
@@ -237,20 +266,7 @@ export default function Products() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Preço Unit.</label>
-                  <Input
-                    type="number"
-                    value={formData.unit_price}
-                    onChange={(e) => setFormData({ ...formData, unit_price: parseFloat(e.target.value) || 0 })}
-                    min="0"
-                    step="0.01"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Estoque Mín.</label>
+                  <label className="block text-sm font-medium text-foreground mb-2">Mín.</label>
                   <Input
                     type="number"
                     value={formData.min_quantity}
@@ -259,7 +275,7 @@ export default function Products() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Estoque Máx.</label>
+                  <label className="block text-sm font-medium text-foreground mb-2">Máx.</label>
                   <Input
                     type="number"
                     value={formData.max_quantity}
