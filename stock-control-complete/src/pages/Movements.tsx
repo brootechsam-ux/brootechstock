@@ -16,15 +16,25 @@ export default function Movements() {
     quantity: 0,
     reason: '',
     notes: '',
+    sale_price: 0,
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
+      // Identificar se é uma venda para preencher o movement_reason técnico
+      const isVenda = formData.type === 'saida' && 
+        (formData.reason.toLowerCase().includes('venda') || formData.reason.toLowerCase() === 'venda')
+
       await addMovement({
         ...formData,
         product_id: formData.product_id,
         date: new Date().toISOString(),
+        movement_reason: isVenda ? 'venda' : 'outro',
+        // Se for venda e o preço não foi informado, tenta pegar o preço de venda atual do produto
+        sale_price: isVenda && formData.sale_price === 0 
+          ? (products.find(p => p.id === formData.product_id)?.unit_price || 0)
+          : formData.sale_price
       })
       setShowModal(false)
       setFormData({
@@ -33,6 +43,7 @@ export default function Movements() {
         quantity: 0,
         reason: '',
         notes: '',
+        sale_price: 0,
       })
     } catch (error) {
       alert('Erro ao registrar movimentação')
@@ -78,13 +89,14 @@ export default function Movements() {
                   <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">Tipo</th>
                   <th className="px-6 py-4 text-right text-sm font-semibold text-foreground">Quantidade</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">Motivo</th>
+                  <th className="px-6 py-4 text-right text-sm font-semibold text-foreground">Venda (R$)</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-foreground">Data</th>
                 </tr>
               </thead>
               <tbody>
                 {movements.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">
+                    <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">
                       Nenhuma movimentação registrada
                     </td>
                   </tr>
@@ -112,6 +124,9 @@ export default function Movements() {
                         </td>
                         <td className="px-6 py-4 text-sm text-right text-foreground">{movement.quantity}</td>
                         <td className="px-6 py-4 text-sm text-muted-foreground">{movement.reason}</td>
+                        <td className="px-6 py-4 text-sm text-right text-foreground">
+                          {movement.sale_price ? `R$ ${movement.sale_price.toFixed(2)}` : '-'}
+                        </td>
                         <td className="px-6 py-4 text-sm text-muted-foreground">
                           {new Date(movement.date).toLocaleDateString('pt-BR')}
                         </td>
@@ -157,27 +172,28 @@ export default function Movements() {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Tipo</label>
-                <select
-                  value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value as 'entrada' | 'saida' })}
-                  className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground"
-                >
-                  <option value="entrada">Entrada</option>
-                  <option value="saida">Saída</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Quantidade</label>
-                <Input
-                  type="number"
-                  value={formData.quantity}
-                  onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })}
-                  min="1"
-                  required
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">Tipo</label>
+                  <select
+                    value={formData.type}
+                    onChange={(e) => setFormData({ ...formData, type: e.target.value as 'entrada' | 'saida' })}
+                    className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground"
+                  >
+                    <option value="entrada">Entrada</option>
+                    <option value="saida">Saída</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">Quantidade</label>
+                  <Input
+                    type="number"
+                    value={formData.quantity}
+                    onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })}
+                    min="1"
+                    required
+                  />
+                </div>
               </div>
 
               <div>
@@ -190,6 +206,20 @@ export default function Movements() {
                   required
                 />
               </div>
+
+              {formData.type === 'saida' && (
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">Preço de Venda (Opcional)</label>
+                  <Input
+                    type="number"
+                    value={formData.sale_price}
+                    onChange={(e) => setFormData({ ...formData, sale_price: parseFloat(e.target.value) || 0 })}
+                    min="0"
+                    step="0.01"
+                    placeholder="Deixe 0 para usar o preço do cadastro"
+                  />
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">Notas</label>
