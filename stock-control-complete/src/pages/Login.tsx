@@ -34,6 +34,10 @@ export default function Login() {
         })
         if (error) throw error
       } else {
+        if (formData.password !== formData.confirmPassword) {
+          throw new Error('As senhas não coincidem')
+        }
+        
         const { error } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
@@ -87,6 +91,7 @@ export default function Login() {
                   placeholder="Seu nome completo"
                   disabled={loading}
                   required
+                  autoComplete="name"
                 />
               </div>
             )}
@@ -102,6 +107,7 @@ export default function Login() {
                 placeholder="seu-email@exemplo.com"
                 disabled={loading}
                 required
+                autoComplete="email"
               />
             </div>
 
@@ -116,6 +122,7 @@ export default function Login() {
                 placeholder="Mínimo 6 caracteres"
                 disabled={loading}
                 required
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
               />
             </div>
 
@@ -131,6 +138,7 @@ export default function Login() {
                   placeholder="Confirme sua senha"
                   disabled={loading}
                   required
+                  autoComplete="new-password"
                 />
               </div>
             )}
