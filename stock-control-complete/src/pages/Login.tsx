@@ -3,7 +3,7 @@ import { useLocation } from 'wouter'
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { Card } from '@/components/ui/Card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card'
 import { AlertCircle, Loader2 } from 'lucide-react'
 
 type AuthMode = 'login' | 'signup'
@@ -48,9 +48,13 @@ export default function Login() {
           },
         })
         if (error) throw error
+        toast.success("Verifique seu email para ativar sua conta.")
+        setLocation(`/verify-otp?email=${formData.email}`)
+        return
       }
 
-      setLocation('/')
+      setLocation(
+/')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro na autenticação')
     } finally {
@@ -159,9 +163,21 @@ export default function Login() {
             </Button>
           </form>
 
+          {mode === 'login' && (
+            <div className="mt-4 text-center">
+              <button
+                type="button"
+                onClick={() => setLocation('/forgot-password')}
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
+              >
+                Esqueceu sua senha?
+              </button>
+            </div>
+          )}
+
           <div className="mt-6 text-center">
             <p className="text-sm text-muted-foreground">
-              {mode === 'login' ? 'Não tem uma conta?' : 'Já tem uma conta?'}{' '}
+              {mode === 'login' ? 'Não tem uma conta?' : 'Já tem uma conta?'}{\' \'}
               <button
                 type="button"
                 onClick={() => {
