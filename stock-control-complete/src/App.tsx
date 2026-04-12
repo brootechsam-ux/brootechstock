@@ -9,6 +9,9 @@ import Products from '@/pages/Products'
 import Movements from '@/pages/Movements'
 import Reports from '@/pages/Reports'
 import UpdatePassword from '@/pages/UpdatePassword'
+import VerifyOTP from '@/pages/VerifyOTP'
+import ForgotPassword from '@/pages/ForgotPassword'
+import ResetPassword from '@/pages/ResetPassword'
 import { Toaster } from 'sonner'
 
 function Router() {
@@ -22,7 +25,7 @@ function Router() {
       
       // Se não houver usuário e não estivermos na página de login ou recuperação, redireciona
       const currentPath = window.location.pathname
-      if (!user && currentPath !== '/login' && currentPath !== '/update-password') {
+      if (!user && currentPath !== '/login' && currentPath !== '/update-password' && currentPath !== '/verify-otp' && currentPath !== '/forgot-password' && currentPath !== '/reset-password') {
         navigate('/login')
       }
     }
@@ -35,7 +38,7 @@ function Router() {
       // Caso especial: o evento PASSWORD_RECOVERY redireciona para a página de update
       if (event === 'PASSWORD_RECOVERY') {
         navigate('/update-password')
-      } else if (!session?.user && window.location.pathname !== '/update-password') {
+      } else if (!session?.user && window.location.pathname !== '/update-password' && window.location.pathname !== '/verify-otp' && window.location.pathname !== '/forgot-password' && window.location.pathname !== '/reset-password') {
         navigate('/login')
       }
     })
@@ -56,6 +59,9 @@ function Router() {
   return (
     <Switch>
       <Route path="/login" component={Login} />
+      <Route path="/verify-otp" component={VerifyOTP} />
+      <Route path="/forgot-password" component={ForgotPassword} />
+      <Route path="/reset-password" component={ResetPassword} />
       <Route path="/update-password" component={UpdatePassword} />
       {isAuthenticated && (
         <>
