@@ -8,6 +8,8 @@ import Home from '@/pages/Home'
 import Products from '@/pages/Products'
 import Movements from '@/pages/Movements'
 import Reports from '@/pages/Reports'
+import UpdatePassword from '@/pages/UpdatePassword'
+import { Toaster } from 'sonner'
 
 function Router() {
   const [, navigate] = useLocation()
@@ -17,16 +19,23 @@ function Router() {
     const checkAuth = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       setIsAuthenticated(!!user)
-      if (!user) {
+      
+      // Se não houver usuário e não estivermos na página de login ou recuperação, redireciona
+      const currentPath = window.location.pathname
+      if (!user && currentPath !== '/login' && currentPath !== '/update-password') {
         navigate('/login')
       }
     }
 
     checkAuth()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setIsAuthenticated(!!session?.user)
-      if (!session?.user) {
+      
+      // Caso especial: o evento PASSWORD_RECOVERY redireciona para a página de update
+      if (event === 'PASSWORD_RECOVERY') {
+        navigate('/update-password')
+      } else if (!session?.user && window.location.pathname !== '/update-password') {
         navigate('/login')
       }
     })
@@ -38,8 +47,8 @@ function Router() {
 
   if (isAuthenticated === null) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-muted-foreground">Carregando...</p>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <p className="text-muted-foreground animate-pulse">Broo Stock...</p>
       </div>
     )
   }
@@ -47,6 +56,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/login" component={Login} />
+      <Route path="/update-password" component={UpdatePassword} />
       {isAuthenticated && (
         <>
           <Route path="/" component={Home} />
@@ -64,6 +74,7 @@ function App() {
   return (
     <ThemeProvider>
       <InventoryProvider>
+        <Toaster richColors position="top-right" />
         <Router />
       </InventoryProvider>
     </ThemeProvider>
