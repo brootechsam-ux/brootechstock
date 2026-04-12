@@ -1,85 +1,142 @@
-import React, { useRef, useState, ChangeEvent, KeyboardEvent } from 'react';
-import { cn } from '@/lib/utils';
+import { useEffect, useState } from 'react';
+import { useLocation } from 'wouter';
+import { supabase } from '@/lib/supabase';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { AlertCircle, CheckCircle, Loader2, Mail } from 'lucide-react';
+import { toast } from 'sonner';
+import { OTPInput } from '@/components/ui/OTPInput';
 
-interface OTPInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  length?: number;
-  onComplete?: (otp: string) => void;
+export default function VerifyOTP() {
+  const [, navigate] = useLocation();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [otp, setOtp] = useState('');
+  const [email, setEmail] = useState('');
+  const [isVerified, setIsVerified] = useState(false);
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const emailParam = urlParams.get('email');
+    if (emailParam) {
+      setEmail(emailParam);
+    } else {
+      toast.error('Email não encontrado. Por favor, tente novamente.');
+      navigate('/login');
+    }
+  }, [navigate]);
+
+  const handleVerifyOtp = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        email,
+        token: otp,
+        type: 'signup',
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        setIsVerified(true);
+        toast.success('Conta verificada com sucesso! Redirecionando para o login...');
+        setTimeout(() => {
+          navigate('/login');
+        }, 3000);
+      } else {
+        setError('Código OTP inválido ou expirado.');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Erro ao verificar OTP.');
+      toast.error(err.message || 'Erro ao verificar OTP.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+      });
+
+      if (error) throw error;
+      toast.success('Novo código OTP enviado para seu email!');
+    } catch (err: any) {
+      setError(err.message || 'Erro ao reenviar OTP.');
+      toast.error(err.message || 'Erro ao reenviar OTP.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+      <Card className="w-full max-w-md shadow-xl border-0">
+        <div className="p-8">
+          <div className="text-center mb-8">
+            <Mail className="mx-auto h-12 w-12 text-primary mb-4" />
+            <h1 className="text-3xl font-bold text-foreground mb-2" style={{ fontFamily: 'Poppins' }}>
+              Verificar Conta
+            </h1>
+            <CardDescription className="text-muted-foreground">
+              {isVerified ? (
+                'Sua conta foi verificada com sucesso!'
+              ) : (
+                `Um código de 6 dígitos foi enviado para ${email}. Por favor, insira-o abaixo.`
+              )}
+            </CardDescription>
+          </div>
+
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex gap-3">
+              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
+          )}
+
+          {isVerified ? (
+            <div className="text-center">
+              <CheckCircle className="mx-auto h-16 w-16 text-green-500 mb-4" />
+              <Button onClick={() => navigate('/login')} className="w-full">
+                Ir para o Login
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <OTPInput length={6} onComplete={setOtp} />
+              <Button
+                onClick={handleVerifyOtp}
+                disabled={loading || otp.length !== 6}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white h-10"
+              >
+                {loading ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  'Verificar Código'
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={handleResendOtp}
+                disabled={loading}
+                className="w-full text-blue-600 hover:text-blue-700"
+              >
+                {loading ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  'Reenviar Código'
+                )}
+              </Button>
+            </div>
+          )}
+        </div>
+      </Card>
+    </div>
+  );
 }
-
-const OTPInput = React.forwardRef<HTMLInputElement, OTPInputProps>(
-  ({ length = 6, onComplete, className, ...props }, ref) => {
-    const [otp, setOtp] = useState<string[]>(new Array(length).fill(''));
-    const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
-
-    const handleChange = (e: ChangeEvent<HTMLInputElement>, index: number) => {
-      const value = e.target.value;
-      if (/[^0-9]/.test(value)) return; // Apenas números
-
-      const newOtp = [...otp];
-      newOtp[index] = value.slice(-1); // Pega apenas o último dígito
-      setOtp(newOtp);
-
-      // Mover para o próximo input se um dígito foi inserido
-      if (value && index < length - 1) {
-        inputRefs.current[index + 1]?.focus();
-      }
-
-      // Chamar onComplete se todos os dígitos foram preenchidos
-      if (newOtp.every(digit => digit !== '')) {
-        onComplete?.(newOtp.join(''));
-      }
-    };
-
-    const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>, index: number) => {
-      if (e.key === 'Backspace' && !otp[index] && index > 0) {
-        // Mover para o input anterior ao apagar
-        inputRefs.current[index - 1]?.focus();
-      }
-    };
-
-    const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
-      e.preventDefault();
-      const pasteData = e.clipboardData.getData('text/plain').slice(0, length);
-      const newOtp = pasteData.split('').filter(char => /[0-9]/.test(char));
-
-      if (newOtp.length === length) {
-        setOtp(newOtp);
-        onComplete?.(newOtp.join(''));
-        inputRefs.current[length - 1]?.focus();
-      } else if (newOtp.length > 0) {
-        // Preencher o máximo possível e focar no próximo vazio
-        const updatedOtp = [...otp];
-        for (let i = 0; i < newOtp.length; i++) {
-          updatedOtp[i] = newOtp[i];
-        }
-        setOtp(updatedOtp);
-        inputRefs.current[newOtp.length - 1]?.focus();
-      }
-    };
-
-    return (
-      <div className="flex space-x-2 justify-center" onPaste={handlePaste}>
-        {otp.map((digit, index) => (
-          <input
-            key={index}
-            type="text"
-            maxLength={1}
-            value={digit}
-            onChange={(e) => handleChange(e, index)}
-            onKeyDown={(e) => handleKeyDown(e, index)}
-            ref={(el) => (inputRefs.current[index] = el)}
-            className={cn(
-              'w-12 h-12 text-center text-2xl font-bold border border-input rounded-md focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all',
-              className
-            )}
-            {...props}
-          />
-        ))}
-      </div>
-    );
-  }
-);
-
-OTPInput.displayName = 'OTPInput';
-
-export { OTPInput };
